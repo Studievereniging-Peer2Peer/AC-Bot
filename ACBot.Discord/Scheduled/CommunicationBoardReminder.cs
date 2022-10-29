@@ -26,26 +26,28 @@ public class CommunicationBoardReminder
             .StoreDurably()
             .Build();
 
-        var trigger = TriggerBuilder.Create()
-            .WithIdentity("CommunicationBoardReminderTrigger", "reminders")
-            .WithDailyTimeIntervalSchedule(x =>
-                x.OnDaysOfTheWeek(DayOfWeek.Saturday)
-                    .InTimeZone(TimeZoneInfo.Local)
-                    .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(14, 30))
-            )
-            .StartNow()
-            .Build();
+        var trigger = GetCommunicationBoardReminderTrigger(DayOfWeek.Saturday, 20, 34);
 
         _scheduler.ScheduleJob(job, trigger);
     }
+
+    public static ITrigger GetCommunicationBoardReminderTrigger(DayOfWeek day, int hour, int minute) =>
+        TriggerBuilder.Create()
+            .WithIdentity("CommunicationBoardReminderTrigger", "reminders")
+            .WithDailyTimeIntervalSchedule(x =>
+                x.OnDaysOfTheWeek(day)
+                    .InTimeZone(TimeZoneInfo.Local)
+                    .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(hour, minute))
+                    .EndingDailyAfterCount(1)
+            )
+            .Build();
 
     private sealed class CommunicationBoardReminderJob : IJob
     {
         public async Task Execute(IJobExecutionContext context)
         {
             var discordClient = context.JobDetail.JobDataMap["discordClient"] as DiscordSocketClient;
-            
-            // TODO: replace with commands & small database
+
             var textChannelsToMessage = discordClient!.Guilds.SelectMany(
                 x => x.Channels.OfType<SocketTextChannel>()
             );

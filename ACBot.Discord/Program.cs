@@ -1,4 +1,5 @@
-﻿using ACBot.Discord.Scheduled;
+﻿using ACBot.Discord.Command;
+using ACBot.Discord.Scheduled;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,14 @@ public class Program
         await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_API_KEY_AC_BOT"));
         await client.StartAsync();
 
-        await _serviceProvider.GetRequiredService<IScheduler>().Start();
+        client.Ready += async () =>
+        {
+            await _serviceProvider.GetRequiredService<CommandRegistry>().RegisterAll();
+            await _serviceProvider.GetRequiredService<IScheduler>().Start();
+            
+            var commands = _serviceProvider.GetRequiredService<Commands>();
+            client.SlashCommandExecuted += commands.HandleACCommand;
+        };
         
         // Enable the communication board reminder service.
         _serviceProvider.GetRequiredService<CommunicationBoardReminder>().Execute();
@@ -36,7 +44,10 @@ public class Program
     {
         var discordConfig = new DiscordSocketConfig()
         {
-            GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.GuildMessages | GatewayIntents.Guilds,
+            GatewayIntents = 
+                GatewayIntents.MessageContent |
+                GatewayIntents.GuildMessages  | 
+                GatewayIntents.Guilds
             
         };
 
@@ -45,6 +56,8 @@ public class Program
         services.AddSingleton(discordConfig)
             .AddSingleton<DiscordSocketClient>()
             .AddSingleton<CommunicationBoardReminder>()
+            .AddSingleton<CommandRegistry>()
+            .AddSingleton<Commands>()
             .AddSingleton<IScheduler>(x => SchedulerBuilder.Create().BuildScheduler().Result);
 
         return services.BuildServiceProvider();
