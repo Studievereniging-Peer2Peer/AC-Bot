@@ -18,9 +18,4 @@
       <PackageReference Include="Quartz.Extensions.Hosting" Version="3.5.0" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Events" />
-      <Folder Include="Services\Jobs" />
-    </ItemGroup>
-
 </Project>
