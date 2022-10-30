@@ -52,7 +52,7 @@ public class CommandRegistry
                         .AddChoice("Donderdag", 4)
                         .AddChoice("Vrijdag", 5)
                         .AddChoice("Zaterdag", 6)
-                        .AddChoice("Zondag", 7)
+                        .AddChoice("Zondag", 0)
                         .WithType(ApplicationCommandOptionType.Integer)
                 )
                 .AddOption(

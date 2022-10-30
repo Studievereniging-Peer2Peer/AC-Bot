@@ -1,4 +1,5 @@
 ﻿using ACBot.Discord.Command;
+using ACBot.Discord.Config;
 using ACBot.Discord.Scheduled;
 using Discord;
 using Discord.WebSocket;
@@ -27,13 +28,15 @@ public class Program
 
         client.Ready += async () =>
         {
+            await _serviceProvider.GetRequiredService<Configuration>().Load();
+            
             await _serviceProvider.GetRequiredService<CommandRegistry>().RegisterAll();
             await _serviceProvider.GetRequiredService<IScheduler>().Start();
             
             var commands = _serviceProvider.GetRequiredService<Commands>();
             client.SlashCommandExecuted += commands.HandleACCommand;
         };
-        
+
         // Enable the communication board reminder service.
         _serviceProvider.GetRequiredService<CommunicationBoardReminder>().Execute();
 
@@ -54,6 +57,7 @@ public class Program
         var services = new ServiceCollection();
 
         services.AddSingleton(discordConfig)
+            .AddSingleton<Configuration>()
             .AddSingleton<DiscordSocketClient>()
             .AddSingleton<CommunicationBoardReminder>()
             .AddSingleton<CommandRegistry>()

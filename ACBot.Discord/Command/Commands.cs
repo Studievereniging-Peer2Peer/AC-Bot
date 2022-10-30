@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using ACBot.Discord.Command.Utilities;
+using ACBot.Discord.Config;
 using ACBot.Discord.Scheduled;
 using Discord;
 using Discord.WebSocket;
@@ -9,13 +10,13 @@ namespace ACBot.Discord.Command;
 
 public class Commands
 {
-    private readonly DiscordSocketClient _client;
     private readonly IScheduler _scheduler;
+    private readonly Configuration _config;
 
-    public Commands(DiscordSocketClient client, IScheduler scheduler)
+    public Commands(IScheduler scheduler, Configuration config)
     {
-        _client = client;
         _scheduler = scheduler;
+        _config = config;
     }
 
     public async Task HandleACCommand(SocketSlashCommand command)
@@ -65,24 +66,23 @@ public class Commands
         }
 
         // If the given channel doesn't actually exist, cancel the operation.
-        if (null == extractedOptions["channel"])
+        if (extractedOptions["channel"] is not SocketTextChannel channel)
         {
             await command.RespondAsync(
-                "Zorg dat je een bestaand kanaal aangeeft!"
+                "Zorg dat je een valide kanaal aangeeft!"
             );
             return;
         }
 
-
         // If the given day is not a number, abort.
-        if (!int.TryParse(extractedOptions["dag"].ToString(), out int dayNum))
+        if (!int.TryParse(extractedOptions["dag"].ToString(), out int dayNum) || dayNum is < 0 or > 6)
         {
             await command.RespondAsync(
                 "Zorg dat je een bestaande dag aangeeft!"
             );
             return;
         }
-
+        
         // If we have been given an invalid number for the day, abort.
         DayOfWeek? day = ConversionUtilities.IntegerToDay(dayNum);
         if (day == null)
@@ -93,8 +93,10 @@ public class Commands
             return;
         }
 
+        var dayOfWeek = (DayOfWeek) day;
+        
         // If we have been given an invalid hour, abort.
-        if (!int.TryParse(extractedOptions["uur"].ToString(), out int hourNum) || hourNum is < 0 or > 23)
+        if (!int.TryParse(extractedOptions["uur"].ToString(), out int hour) || hour is < 0 or > 23)
         {
             await command.RespondAsync(
                 "Zorg dat je een bestaand uur aangeeft! (0-23)"
@@ -114,19 +116,37 @@ public class Commands
             return;
         }
 
-        var dayOfWeek = (DayOfWeek) day;
+        await UpdateCommunicationBoardReminderConfiguration(channel, dayOfWeek, hour, minute);
 
-        // TODO: store new date/time in persistent data store, make sure 'channel' also gets used.
-        
         // Restart scheduled job with new trigger.
         await _scheduler.RescheduleJob(
             new TriggerKey("CommunicationBoardReminderTrigger", "reminders"),
-            CommunicationBoardReminder.GetCommunicationBoardReminderTrigger(dayOfWeek, hourNum, minute)
+            CommunicationBoardReminder.GetCommunicationBoardReminderTrigger(dayOfWeek, hour, minute)
         );
 
         // TODO: Format this nicely.
         await command.RespondAsync(
-            $"De reminder voor het communicatiebord is ingesteld op: {day} {hourNum}h {minute}m."
+            $"De reminder voor het communicatiebord is ingesteld op: {day} {hour}h {minute}m."
         );
+    }
+
+    private async Task UpdateCommunicationBoardReminderConfiguration(SocketTextChannel channel, DayOfWeek dayOfWeek,
+        int hour, int minute)
+    {
+        // Update configuration to set new reality.
+        // commboard_reminder_channel => channel to message in
+        // commboard_reminder_dag => day to send the message at
+        // commboard_reminder_uur => hour to send the message at (24 hour clock)
+        // commboard_reminder_minuut => minute to send the message at
+        _config.ConfigurationMappings["commboard_reminder_channel"] = channel.Id;
+        _config.ConfigurationMappings["commboard_reminder_dag"] = dayOfWeek;
+        _config.ConfigurationMappings["commboard_reminder_uur"] = hour;
+        _config.ConfigurationMappings["commboard_reminder_minuut"] = minute;
+
+        // Save the changes. This is an I/O operation, thus it may be interesting to handle it
+        // in another way in the future. E.g. an event for when the console application exits.
+        // However do note that the consistency is of utmost importance.
+        // For now it works, seeing as I don't think this command will be executed often.
+        await _config.Save();
     }
 }
