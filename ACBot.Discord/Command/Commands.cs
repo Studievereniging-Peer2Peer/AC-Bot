@@ -3,6 +3,7 @@ using ACBot.Discord.Command.Utilities;
 using ACBot.Discord.Config;
 using ACBot.Discord.Scheduled;
 using Discord;
+using Discord.Commands;
 using Discord.WebSocket;
 using Quartz;
 
@@ -18,7 +19,7 @@ public class Commands
         _scheduler = scheduler;
         _config = config;
     }
-
+    
     public async Task HandleACCommand(SocketSlashCommand command)
     {
         switch (command.Data.Options.FirstOrDefault()?.Name)
@@ -49,6 +50,15 @@ public class Commands
     public async Task HandleCommunicationBoardSetCommand(SocketSlashCommand command,
         IReadOnlyCollection<SocketSlashCommandDataOption> options)
     {
+
+        if (!(command.User as SocketGuildUser)!.GuildPermissions.Has(GuildPermission.Administrator))
+        {
+            await command.RespondAsync(
+                "Je hebt administratieve rechten nodig om deze command uit te mogen voeren."
+            );
+            return;
+        }
+        
         var extractedOptions = options.ToImmutableDictionary(
             x => x.Name,
             x => x.Value

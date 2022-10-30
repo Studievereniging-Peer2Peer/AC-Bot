@@ -50,8 +50,8 @@ public class Program
             GatewayIntents = 
                 GatewayIntents.MessageContent |
                 GatewayIntents.GuildMessages  | 
-                GatewayIntents.Guilds
-            
+                GatewayIntents.Guilds,
+            AlwaysDownloadUsers = true
         };
 
         var services = new ServiceCollection();
@@ -62,7 +62,7 @@ public class Program
             .AddSingleton<CommunicationBoardReminder>()
             .AddSingleton<CommandRegistry>()
             .AddSingleton<Commands>()
-            .AddSingleton<IScheduler>(x => SchedulerBuilder.Create().BuildScheduler().Result);
+            .AddSingleton(SchedulerBuilder.Create().BuildScheduler().Result);
 
         return services.BuildServiceProvider();
     }

@@ -21,7 +21,6 @@ public class CommandRegistry
         // Send command creation to target guild(s).
         foreach (var clientGuild in _client.Guilds)
             await clientGuild.CreateApplicationCommandAsync(ACBotCommands);
-        
     }
 
 
