@@ -1,10 +1,8 @@
-﻿using ACBot.Discord.Command;
-using ACBot.Discord.Config;
-using ACBot.Discord.Scheduled;
+﻿using ACBot.Discord.Events.Discord;
+using ACBot.Discord.Extensions;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
-using Quartz;
 
 namespace ACBot.Discord;
 
@@ -13,7 +11,7 @@ public class Program
     private readonly IServiceProvider _serviceProvider;
 
     public Program()
-        => _serviceProvider = CreateServices();
+        => _serviceProvider = CreateDependencyInjectionServices();
 
     public static void Main(string[] args) 
         => new Program().MainAsync().GetAwaiter().GetResult();
@@ -21,29 +19,17 @@ public class Program
     public async Task MainAsync()
     {
         var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
-        client.Log += Log;
+        client.Log += new DiscordClientLogEvent().Log;
         
         await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_API_KEY_AC_BOT"));
         await client.StartAsync();
 
-        client.Ready += async () =>
-        {
-            await _serviceProvider.GetRequiredService<Configuration>().Load();
-            
-            await _serviceProvider.GetRequiredService<CommandRegistry>().RegisterAll();
-            await _serviceProvider.GetRequiredService<IScheduler>().Start();
-            
-            var commands = _serviceProvider.GetRequiredService<Commands>();
-            client.SlashCommandExecuted += commands.HandleACCommand;
-        };
-
-        // Enable the communication board reminder service.
-        _serviceProvider.GetRequiredService<CommunicationBoardReminder>().Execute();
-
+        client.Ready += new DiscordClientReadyEvent(_serviceProvider, client).OnReady;
+        
         await Task.Delay(Timeout.Infinite);
     }
     
-    public IServiceProvider CreateServices()
+    public IServiceProvider CreateDependencyInjectionServices()
     {
         var discordConfig = new DiscordSocketConfig()
         {
@@ -56,16 +42,14 @@ public class Program
 
         var services = new ServiceCollection();
 
-        services.AddSingleton(discordConfig)
-            .AddSingleton<Configuration>()
-            .AddSingleton<DiscordSocketClient>()
-            .AddSingleton<CommunicationBoardReminder>()
-            .AddSingleton<CommandRegistry>()
-            .AddSingleton<Commands>()
-            .AddSingleton(SchedulerBuilder.Create().BuildScheduler().Result);
+        services
+            .AddDiscord(discordConfig)
+            .AddConfiguration()
+            .AddReminders()
+            .AddCommands()
+            .AddScheduler();
 
         return services.BuildServiceProvider();
     }
-
-    public Task Log(LogMessage message) => Console.Out.WriteLineAsync(message.Message);
+    
 }

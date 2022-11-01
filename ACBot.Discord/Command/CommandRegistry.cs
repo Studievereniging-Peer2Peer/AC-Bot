@@ -10,11 +10,15 @@ public class CommandRegistry
     public CommandRegistry(DiscordSocketClient client)
         => _client = client;
 
+    /// <summary>
+    /// Register all SlashCommand information for the client-side.
+    /// This registers all the SlashCommand helper things on the client-side.
+    /// </summary>
     public async Task RegisterAll()
     {
         var ACBotCommands = new SlashCommandBuilder()
             .WithName("ac")
-            .WithDescription("activteitencommissie bot hoofdcommand")
+            .WithDescription("activiteitencommissie bot hoofdcommand")
             .AddOption(RegisterCommunicationBoardSubCommand())
             .Build();
 
@@ -24,6 +28,10 @@ public class CommandRegistry
     }
 
 
+    /// <summary>
+    /// Register SlashCommand information for the client-side.
+    /// </summary>
+    /// <returns>The SlashCommandOptionBuilder containing all command info for the commboard sub command.</returns>
     private SlashCommandOptionBuilder RegisterCommunicationBoardSubCommand()
         => new SlashCommandOptionBuilder()
             .WithName("commboard")
